@@ -1,0 +1,15 @@
+# Shared data (too large for git, 1.2GB)
+data/stock_panel_data.parquet
+
+# Python
+__pycache__/
+*.pyc
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+
+# Claude Code
+.claude/

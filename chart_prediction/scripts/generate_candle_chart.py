@@ -1,0 +1,312 @@
+"""
+트레이딩뷰 스타일 캔들차트 생성기
+- 6개월 전체 차트 (ground truth)
+- 앞 3개월만 보이는 차트 (LLM에게 제공할 차트)
+"""
+import math
+import pandas as pd
+import numpy as np
+import mplfinance as mpf
+import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
+import os
+
+# ── 설정 ─────────────────────────────────────────────────────────
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_PATH = os.path.join(SCRIPT_DIR, "..", "..", "data", "stock_panel_data.parquet")
+BASE_DIR = os.path.join(SCRIPT_DIR, "..")
+INPUT_DIR = os.path.join(BASE_DIR, "data", "input")          # blank_3m 차트
+LABEL_DIR = os.path.join(BASE_DIR, "data", "label", "full_charts")  # full_6m 차트
+os.makedirs(INPUT_DIR, exist_ok=True)
+os.makedirs(LABEL_DIR, exist_ok=True)
+
+# 20개 종목-날짜 쌍 (chart_start, split_date, chart_end)
+PAIRS = [
+    # 대장주 10개
+    {"ticker": "AAPL",  "start": "2020-05-28", "split": "2020-08-25", "end": "2020-11-23", "cat": "major"},
+    {"ticker": "MSFT",  "start": "2019-11-12", "split": "2020-02-12", "end": "2020-05-13", "cat": "major"},
+    {"ticker": "AMZN",  "start": "2020-10-13", "split": "2021-01-12", "end": "2021-04-14", "cat": "major"},
+    {"ticker": "TSLA",  "start": "2021-07-07", "split": "2021-10-04", "end": "2022-01-03", "cat": "major"},
+    {"ticker": "NVDA",  "start": "2022-01-13", "split": "2022-04-13", "end": "2022-07-15", "cat": "major"},
+    {"ticker": "META",  "start": "2022-01-03", "split": "2022-04-01", "end": "2022-07-05", "cat": "major"},
+    {"ticker": "GOOGL", "start": "2022-12-23", "split": "2023-03-27", "end": "2023-06-27", "cat": "major"},
+    {"ticker": "NFLX",  "start": "2022-11-22", "split": "2023-02-23", "end": "2023-05-24", "cat": "major"},
+    {"ticker": "AMD",   "start": "2024-07-03", "split": "2024-10-01", "end": "2024-12-31", "cat": "major"},
+    {"ticker": "AVGO",  "start": "2023-11-08", "split": "2024-02-08", "end": "2024-05-09", "cat": "major"},
+    # 랜덤 10개
+    {"ticker": "TWST",  "start": "2020-02-14", "split": "2020-05-14", "end": "2020-08-13", "cat": "random"},
+    {"ticker": "STRO",  "start": "2019-11-20", "split": "2020-02-21", "end": "2020-05-21", "cat": "random"},
+    {"ticker": "CHRW",  "start": "2021-08-12", "split": "2021-11-09", "end": "2022-02-09", "cat": "random"},
+    {"ticker": "STAA",  "start": "2020-10-16", "split": "2021-01-15", "end": "2021-04-19", "cat": "random"},
+    {"ticker": "MAT",   "start": "2021-11-22", "split": "2022-02-22", "end": "2022-05-23", "cat": "random"},
+    {"ticker": "ANNX",  "start": "2022-07-11", "split": "2022-10-06", "end": "2023-01-06", "cat": "random"},
+    {"ticker": "NVX",   "start": "2023-05-11", "split": "2023-08-10", "end": "2023-11-08", "cat": "random"},
+    {"ticker": "KRRO",  "start": "2023-08-10", "split": "2023-11-07", "end": "2024-02-08", "cat": "random"},
+    {"ticker": "ARCC",  "start": "2024-05-13", "split": "2024-08-12", "end": "2024-11-08", "cat": "random"},
+    {"ticker": "CABA",  "start": "2024-01-05", "split": "2024-04-05", "end": "2024-07-08", "cat": "random"},
+]
+
+
+def load_data():
+    """stock_panel_data에서 OHLCV 로드"""
+    df = pd.read_parquet(DATA_PATH, columns=["ticker", "date", "open", "high", "low", "close", "volume"])
+    df["date"] = pd.to_datetime(df["date"])
+    return df
+
+
+def get_ohlcv(panel: pd.DataFrame, ticker: str, start: str, end: str) -> pd.DataFrame:
+    """특정 티커, 기간의 OHLCV 데이터를 mplfinance 형식으로 반환"""
+    mask = (panel["ticker"] == ticker) & (panel["date"] >= start) & (panel["date"] <= end)
+    df = panel[mask].copy().sort_values("date")
+    df.set_index("date", inplace=True)
+    df.index.name = "Date"
+    # mplfinance 컬럼명 맞추기
+    df.rename(columns={
+        "open": "Open", "high": "High", "low": "Low", "close": "Close", "volume": "Volume"
+    }, inplace=True)
+    return df[["Open", "High", "Low", "Close", "Volume"]]
+
+
+# ── 트레이딩뷰 스타일 정의 ─────────────────────────────────────
+tv_style = mpf.make_mpf_style(
+    base_mpf_style="charles",
+    marketcolors=mpf.make_marketcolors(
+        up="#26a69a",       # 초록(틸) - 상승
+        down="#ef5350",     # 빨강 - 하락
+        edge="inherit",
+        wick="inherit",
+        volume={"up": "#a5d6d2", "down": "#f5a0a0"},  # 볼륨 연한 색
+    ),
+    facecolor="white",
+    edgecolor="white",
+    figcolor="white",
+    gridstyle="-",
+    gridcolor="#e0e0e0",
+    y_on_right=True,
+    rc={
+        "font.size": 11,
+        "axes.labelsize": 11,
+        "xtick.labelsize": 10,
+        "ytick.labelsize": 10,
+    },
+)
+
+
+def generate_chart(ohlcv: pd.DataFrame, ticker: str, suffix: str, title: str = "",
+                   ylim=None, end_close=None):
+    """캔들차트 이미지 생성 & 저장
+    end_close: 차트 마지막 날짜에 표시할 종가 (점 + 가격 라벨)
+    """
+    if len(ohlcv) == 0:
+        print(f"  [SKIP] {ticker} - no data")
+        return
+
+    # 캔들/볼륨 너비 설정 (트레이딩뷰처럼 넓게)
+    candle_width = 0.7
+    volume_width = 0.7
+
+    kwargs = dict(
+        type="candle",
+        style=tv_style,
+        volume=True,
+        ylabel="",
+        ylabel_lower="",
+        figsize=(20, 9),
+        tight_layout=True,
+        returnfig=True,
+        panel_ratios=(4, 1),
+        scale_padding={"left": 0.05, "top": 0.6, "right": 0.8, "bottom": 0.5},
+        update_width_config=dict(
+            candle_linewidth=1.0,
+            candle_width=candle_width,
+            volume_linewidth=0.5,
+            volume_width=volume_width,
+        ),
+    )
+    if ylim is not None:
+        kwargs["ylim"] = ylim
+
+    fig, axes = mpf.plot(ohlcv, **kwargs)
+
+    ax = axes[0]
+
+    # 타이틀 추가 (트레이딩뷰처럼 좌상단)
+    ax.set_title(title, loc="left", fontsize=12, fontweight="bold", pad=10)
+
+    # ── X축: 트레이딩뷰 스타일 (월 이름 굵게 + 중간 날짜) ──
+    dates = ohlcv.index
+    tick_positions = []
+    tick_labels = []
+    month_names = {
+        1: "Jan", 2: "Feb", 3: "Mar", 4: "Apr", 5: "May", 6: "Jun",
+        7: "Jul", 8: "Aug", 9: "Sep", 10: "Oct", 11: "Nov", 12: "Dec",
+    }
+    prev_month = None
+    for i, d in enumerate(dates):
+        if prev_month is not None and d.month != prev_month:
+            # 월 경계: 굵은 월 이름
+            label = month_names[d.month]
+            if d.month == 1:
+                label = f"{d.year}"
+            tick_positions.append(i)
+            tick_labels.append((label, True))  # True = bold
+        elif d.day in (5, 6, 7) or d.day in (11, 12, 13) or d.day in (17, 18, 19) or d.day in (23, 24, 25):
+            # 주 단위 날짜: 해당 주에서 첫 거래일만 표시
+            is_first_in_week = True
+            for j in range(max(0, i - 2), i):
+                dj = dates[j]
+                if dj.month == d.month and abs(dj.day - d.day) <= 2 and (dj.day, True) != (d.day, True):
+                    # 같은 주 범위에 이미 라벨이 있으면 스킵
+                    if any(tp == j for tp in tick_positions):
+                        is_first_in_week = False
+                        break
+            if is_first_in_week:
+                tick_positions.append(i)
+                tick_labels.append((str(d.day), False))  # False = normal
+        prev_month = d.month
+
+    # x축 적용 (캔들 & 볼륨 패널 모두)
+    for a in [axes[0], axes[2]]:  # axes[0]=candle, axes[2]=volume
+        a.set_xticks(tick_positions)
+        labels_obj = a.set_xticklabels([t[0] for t in tick_labels], fontsize=10)
+        for lbl, (_, is_bold) in zip(labels_obj, tick_labels):
+            if is_bold:
+                lbl.set_fontweight("bold")
+                lbl.set_fontsize(11)
+
+    # ── Y축: 트레이딩뷰처럼 ~17틱 목표, nice number 간격 ──
+    price_lo, price_hi = ax.get_ylim()
+    price_range = price_hi - price_lo
+    nice_steps = [0.01, 0.02, 0.05, 0.10, 0.20, 0.25, 0.50,
+                  1, 2, 4, 5, 10, 20, 25, 50, 100, 200, 500]
+    target_ticks = 17
+    raw_step = price_range / target_ticks
+    step = nice_steps[0]
+    for s in nice_steps:
+        if s >= raw_step:
+            step = s
+            break
+    tick_lo = math.floor(price_lo / step) * step
+    tick_hi = math.ceil(price_hi / step) * step + step
+    yticks = np.arange(tick_lo, tick_hi, step)
+    ax.set_yticks(yticks)
+    # 소수점 자릿수 자동 결정
+    if step >= 1:
+        fmt = "%.2f"
+    else:
+        decimals = max(2, len(str(step).rstrip('0').split('.')[-1]))
+        fmt = f"%.{decimals}f"
+    ax.yaxis.set_major_formatter(mticker.FormatStrFormatter(fmt))
+
+    # 예측 영역에만 목표 가격 점선 표시 (빈 영역에서만 보이도록)
+    if end_close is not None:
+        last_x = len(ohlcv) - 1  # mplfinance x축은 0-indexed 정수
+        # NaN 시작점 찾기 (split point)
+        valid_mask = ohlcv['Close'].notna()
+        split_x = valid_mask.sum() - 1  # 마지막 유효 캔들 위치
+        # 예측 영역에만 빨간 수평 점선 (split → 차트 끝)
+        ax.plot([split_x, last_x], [end_close, end_close],
+                color="#ef5350", linewidth=1.2, linestyle="--", alpha=0.7, zorder=4)
+        # 빨간 점
+        ax.plot(last_x, end_close, marker="o", color="#ef5350", markersize=8, zorder=5)
+        ax.annotate(
+            f"${end_close:.2f}",
+            xy=(last_x, end_close),
+            xytext=(-10, 12), textcoords="offset points",
+            fontsize=10, fontweight="bold", color="#ef5350",
+            ha="right",
+        )
+
+    # ── 거래량 Y축 숨기기 (마지막 바 위에 값 표시하므로 불필요) ──
+    vol_ax = axes[2]  # 볼륨 패널
+    vol_ax.yaxis.set_ticks([])
+    vol_ax.yaxis.set_ticklabels([])
+    vol_ax.set_ylabel("")  # "Volume 10^6" 라벨 제거
+    vol_series = ohlcv["Volume"].dropna()
+    if len(vol_series) > 0:
+        last_vol_idx = vol_series.index[-1]
+        last_vol = vol_series.iloc[-1]
+        last_vol_x = ohlcv.index.get_loc(last_vol_idx)
+        # 읽기 쉬운 형식으로 변환
+        if last_vol >= 1e9:
+            vol_label = f"{last_vol / 1e9:.1f}B"
+        elif last_vol >= 1e6:
+            vol_label = f"{last_vol / 1e6:.1f}M"
+        elif last_vol >= 1e3:
+            vol_label = f"{last_vol / 1e3:.0f}K"
+        else:
+            vol_label = f"{last_vol:.0f}"
+        # 마지막 바 위에 값 표시
+        vol_ax.annotate(
+            vol_label,
+            xy=(last_vol_x, last_vol),
+            xytext=(0, 8), textcoords="offset points",
+            fontsize=9, fontweight="bold", color="#555555",
+            ha="center", va="bottom",
+        )
+
+    fname = f"{ticker}_{suffix}.png"
+    out_dir = INPUT_DIR if "blank" in suffix else LABEL_DIR
+    fpath = os.path.join(out_dir, fname)
+    fig.savefig(fpath, dpi=150, bbox_inches="tight", facecolor="white")
+    plt.close(fig)
+    return fpath
+
+
+def main():
+    print("데이터 로딩 중...")
+    panel = load_data()
+    print(f"로딩 완료: {len(panel)} rows\n")
+
+    label_rows = []  # actual_midprices.csv용
+
+    for p in PAIRS:
+        ticker = p["ticker"]
+        cat_label = "대장주" if p["cat"] == "major" else "랜덤"
+        print(f"[{cat_label}] {ticker}")
+
+        # 1) 전체 6개월 차트 (ground truth)
+        full_data = get_ohlcv(panel, ticker, p["start"], p["end"])
+        title_full = f"{ticker} · NASDAQ · 1D"
+        path_full = generate_chart(full_data, ticker, "full_6m", title_full)
+        print(f"  전체 6개월: {path_full} ({len(full_data)} days)")
+
+        # 2) 뒤 3개월 비워놓은 차트 (LLM에게 제공)
+        blank_data = full_data.copy()
+        split_dt = pd.to_datetime(p["split"])
+        blank_data.loc[blank_data.index > split_dt, ["Open", "High", "Low", "Close", "Volume"]] = float("nan")
+        # y축 범위를 앞 3개월 + 끝 종가 모두 포함하도록 설정
+        visible_part = blank_data.loc[blank_data.index <= split_dt]
+        actual_end_close = full_data["Close"].iloc[-1]  # 실제 3개월 뒤 종가
+        ylim_lo = min(visible_part["Low"].min(), actual_end_close) * 0.97
+        ylim_hi = max(visible_part["High"].max(), actual_end_close) * 1.03
+        title_blank = f"{ticker} · NASDAQ · 1D"
+        path_blank = generate_chart(
+            blank_data, ticker, "blank_3m", title_blank,
+            ylim=(ylim_lo, ylim_hi), end_close=actual_end_close,
+        )
+        n_visible = visible_part.dropna().shape[0]
+        print(f"  빈칸 차트:  {path_blank} ({n_visible} candles + blank, end close: ${actual_end_close:.2f})")
+
+        # 정답 데이터 수집
+        last_visible_close = visible_part["Close"].dropna().iloc[-1]
+        label_rows.append({
+            "ticker": ticker,
+            "category": p["cat"],
+            "start": p["start"],
+            "split": p["split"],
+            "end": p["end"],
+            "last_visible_close": round(last_visible_close, 2),
+            "actual_end_close": round(actual_end_close, 2),
+        })
+
+    # actual_midprices.csv 저장
+    label_csv = os.path.join(BASE_DIR, "data", "label", "actual_midprices.csv")
+    pd.DataFrame(label_rows).to_csv(label_csv, index=False)
+    print(f"\n정답 CSV: {label_csv}")
+    print(f"입력 차트: {INPUT_DIR}")
+    print(f"GT 차트:   {LABEL_DIR}")
+
+
+if __name__ == "__main__":
+    main()

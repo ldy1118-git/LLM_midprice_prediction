@@ -1,0 +1,3 @@
+experiment,model,mode,period,feature_set,mape,pearson,direction_acc,vol_ratio,n_tickers,linear_mape,mape_improvement,pred_linear_corr
+chatgpt5.4_thinking_expand_1y_A,chatgpt5.4,thinking_expand,1y,A,16.376,0.59,57.213,0.171,20,17.102,-0.908,0.849
+gemini_pro_1y_A,gemini,pro,1y,A,17.15,0.528,55.0,0.269,20,17.102,-0.373,0.933
