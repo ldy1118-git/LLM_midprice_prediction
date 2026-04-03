@@ -198,17 +198,51 @@ def generate_chart(ohlcv: pd.DataFrame, ticker: str, suffix: str, title: str = "
         fmt = f"%.{decimals}f"
     ax.yaxis.set_major_formatter(mticker.FormatStrFormatter(fmt))
 
-    # 예측 영역에만 목표 가격 점선 표시 (빈 영역에서만 보이도록)
+    # 예측 영역 표시: 빨간 사각형 테두리 + 목표 가격 캔들 박스
     if end_close is not None:
+        from matplotlib.patches import Rectangle, FancyBboxPatch
+
         last_x = len(ohlcv) - 1  # mplfinance x축은 0-indexed 정수
         # NaN 시작점 찾기 (split point)
         valid_mask = ohlcv['Close'].notna()
         split_x = valid_mask.sum() - 1  # 마지막 유효 캔들 위치
-        # 예측 영역에만 빨간 수평 점선 (split → 차트 끝)
+
+        # ── 1) 예측 영역 빨간 사각형 테두리 ──
+        y_lo, y_hi = ax.get_ylim()
+        rect = Rectangle(
+            (split_x + 0.5, y_lo), last_x - split_x - 0.5, y_hi - y_lo,
+            linewidth=2.5, edgecolor="#ef5350", facecolor="#ef5350",
+            alpha=0.06, linestyle="-", zorder=3,
+        )
+        ax.add_patch(rect)
+        # 테두리만 한 번 더 (배경 없이, 선명하게)
+        rect_border = Rectangle(
+            (split_x + 0.5, y_lo), last_x - split_x - 0.5, y_hi - y_lo,
+            linewidth=2.5, edgecolor="#ef5350", facecolor="none",
+            linestyle="-", zorder=6,
+        )
+        ax.add_patch(rect_border)
+
+        # ── 2) 목표 가격 빨간 수평 점선 (split → 차트 끝) ──
         ax.plot([split_x, last_x], [end_close, end_close],
                 color="#ef5350", linewidth=1.2, linestyle="--", alpha=0.7, zorder=4)
-        # 빨간 점
-        ax.plot(last_x, end_close, marker="o", color="#ef5350", markersize=8, zorder=5)
+
+        # ── 3) 목표 가격 캔들 박스 (점 대신 캔들 body 형태) ──
+        candle_half_height = (y_hi - y_lo) * 0.012  # 캔들 body 높이 (차트 높이의 ~2.4%)
+        candle_box = Rectangle(
+            (last_x - candle_width / 2, end_close - candle_half_height),
+            candle_width, candle_half_height * 2,
+            linewidth=1.5, edgecolor="#ef5350", facecolor="#ef5350",
+            zorder=5,
+        )
+        ax.add_patch(candle_box)
+        # 위아래 wick (심지)
+        wick_half = candle_half_height * 2.0
+        ax.plot([last_x, last_x],
+                [end_close - candle_half_height - wick_half, end_close + candle_half_height + wick_half],
+                color="#ef5350", linewidth=1.2, zorder=4)
+
+        # 가격 라벨
         ax.annotate(
             f"${end_close:.2f}",
             xy=(last_x, end_close),
@@ -258,26 +292,37 @@ def main():
     panel = load_data()
     print(f"로딩 완료: {len(panel)} rows\n")
 
-    label_rows = []  # actual_midprices.csv용
+    label_rows = []          # actual_midprices.csv용 (요약)
+    prediction_ohlcv = []    # 예측 기간 일별 OHLCV (정답 라벨)
 
     for p in PAIRS:
         ticker = p["ticker"]
         cat_label = "대장주" if p["cat"] == "major" else "랜덤"
         print(f"[{cat_label}] {ticker}")
 
-        # 1) 전체 6개월 차트 (ground truth)
+        # 전체 6개월 데이터 로드
         full_data = get_ohlcv(panel, ticker, p["start"], p["end"])
-        title_full = f"{ticker} · NASDAQ · 1D"
-        path_full = generate_chart(full_data, ticker, "full_6m", title_full)
-        print(f"  전체 6개월: {path_full} ({len(full_data)} days)")
-
-        # 2) 뒤 3개월 비워놓은 차트 (LLM에게 제공)
-        blank_data = full_data.copy()
         split_dt = pd.to_datetime(p["split"])
+
+        # 예측 기간(split 다음날 ~ end) 일별 OHLCV → 정답 라벨
+        pred_period = full_data.loc[full_data.index > split_dt].copy()
+        for date_idx, row in pred_period.iterrows():
+            prediction_ohlcv.append({
+                "ticker": ticker,
+                "date": date_idx.strftime("%Y-%m-%d"),
+                "open": round(row["Open"], 2),
+                "high": round(row["High"], 2),
+                "low": round(row["Low"], 2),
+                "close": round(row["Close"], 2),
+                "volume": int(row["Volume"]),
+            })
+        print(f"  정답 라벨: {len(pred_period)} trading days ({p['split']} ~ {p['end']})")
+
+        # 뒤 3개월 비워놓은 차트 (LLM에게 제공)
+        blank_data = full_data.copy()
         blank_data.loc[blank_data.index > split_dt, ["Open", "High", "Low", "Close", "Volume"]] = float("nan")
-        # y축 범위를 앞 3개월 + 끝 종가 모두 포함하도록 설정
         visible_part = blank_data.loc[blank_data.index <= split_dt]
-        actual_end_close = full_data["Close"].iloc[-1]  # 실제 3개월 뒤 종가
+        actual_end_close = full_data["Close"].iloc[-1]
         ylim_lo = min(visible_part["Low"].min(), actual_end_close) * 0.97
         ylim_hi = max(visible_part["High"].max(), actual_end_close) * 1.03
         title_blank = f"{ticker} · NASDAQ · 1D"
@@ -286,9 +331,9 @@ def main():
             ylim=(ylim_lo, ylim_hi), end_close=actual_end_close,
         )
         n_visible = visible_part.dropna().shape[0]
-        print(f"  빈칸 차트:  {path_blank} ({n_visible} candles + blank, end close: ${actual_end_close:.2f})")
+        print(f"  입력 차트: {path_blank} ({n_visible} candles + blank)")
 
-        # 정답 데이터 수집
+        # 요약 정보 수집
         last_visible_close = visible_part["Close"].dropna().iloc[-1]
         label_rows.append({
             "ticker": ticker,
@@ -298,14 +343,19 @@ def main():
             "end": p["end"],
             "last_visible_close": round(last_visible_close, 2),
             "actual_end_close": round(actual_end_close, 2),
+            "prediction_days": len(pred_period),
         })
 
-    # actual_midprices.csv 저장
+    # 1) 요약 CSV 저장
     label_csv = os.path.join(BASE_DIR, "data", "label", "actual_midprices.csv")
     pd.DataFrame(label_rows).to_csv(label_csv, index=False)
-    print(f"\n정답 CSV: {label_csv}")
-    print(f"입력 차트: {INPUT_DIR}")
-    print(f"GT 차트:   {LABEL_DIR}")
+    print(f"\n요약 CSV: {label_csv}")
+
+    # 2) 예측 기간 일별 OHLCV 정답 라벨 저장
+    ohlcv_csv = os.path.join(BASE_DIR, "data", "label", "prediction_ohlcv.csv")
+    pd.DataFrame(prediction_ohlcv).to_csv(ohlcv_csv, index=False)
+    print(f"정답 OHLCV: {ohlcv_csv} ({len(prediction_ohlcv)} rows)")
+    print(f"입력 차트:  {INPUT_DIR}")
 
 
 if __name__ == "__main__":
