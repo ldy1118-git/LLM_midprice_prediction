@@ -1,0 +1,67 @@
+Look at this stock candlestick chart image and draw predicted candles in the empty area. Output one completed chart image.
+
+
+
+  IMAGE DESCRIPTION:
+
+  - Left side: approximately 3 months of actual daily candlesticks (historical data)
+
+  - Right side inside the red rectangle border: empty prediction area
+
+  - Red price box on the right Y-axis: last visible closing price (prediction starting point)
+
+  - Red dashed horizontal line, red dot, and small number above it: reference price level approximately 3 months ahead. The red dot marks
+
+  the FINAL DAY of the prediction period.
+
+
+
+  ABSOLUTE RULES:
+
+  - Do NOT draw anything outside the red rectangle border. All predicted candles must be strictly inside the red rectangle.
+
+  - Do NOT modify any existing element in the image — left-side candles, axes, labels, gridlines, red border, red dot, dashed line, numbers,
+
+   volume bars. Not even 1 pixel.
+
+  - Keep the image size, resolution, and quality exactly identical to the original.
+
+
+
+  INSTRUCTIONS:
+
+  1. Carefully analyze the historical candles on the left side:
+
+     - Overall trend direction (uptrend / downtrend / sideways)
+
+     - Recent momentum strength and direction
+
+     - Key support and resistance levels
+
+     - Daily price range (volatility)
+
+     - Volume patterns
+
+  2. Draw exactly 63 daily candlesticks inside the red rectangle. Space them evenly so that the 63rd (last) candle is positioned directly at
+
+   the red dot. Do NOT stop short of the red dot — the candles must reach all the way to it.
+
+  3. The first candle should open near the last closing price shown in the red price box on the Y-axis.
+
+  4. The price path should naturally move toward the red dot's price level over the 63 days, so the final candle's close is near that
+
+  reference price.
+
+  5. Draw candles with a similar daily range as observed in the historical candles. Include realistic pullbacks, consolidation, and rebounds
+
+   along the way.
+
+  6. Bullish candles: green (#26a69a). Bearish candles: red (#ef5350). Same style as the existing candles on the left.
+
+
+
+  OUTPUT:
+
+  - Display "Predicted: N trading days" (N = actual number of candles drawn) as small text in the upper area inside the red rectangle.
+
+  - Output only the completed chart image. No text, no explanation, no markdown. Just the image.
