@@ -25,9 +25,9 @@ import csv
 sys.stdout.reconfigure(line_buffering=True)
 
 # ── 경로 설정 ──
-BASE_DIR = Path(__file__).resolve().parent.parent
-PROMPTS_DIR = BASE_DIR / "prompts"
-OUTPUT_DIR = BASE_DIR / "output"
+BASE_DIR = Path(__file__).resolve().parent.parent       # daeyun/
+PROMPTS_DIR = BASE_DIR / "prompts"                      # daeyun/prompts
+OUTPUT_DIR = BASE_DIR / "output"                        # daeyun/output
 
 # ── API 설정 ──
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")

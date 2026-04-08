@@ -26,5 +26,5 @@ RULES:
 1. Do NOT include candles from the left (historical) area — only the predicted ones inside the red rectangle.
 2. Use the Y-axis price labels on the right side to determine exact price values.
 3. For each candle: high = top of wick, low = bottom of wick, open/close = top/bottom of the body.
-4. If the candle body is green (#26a69a or similar), close > open (bullish). If red (#ef5350 or similar), close < open (bearish).
+4. If the candle body is blue (#2962ff or similar), close > open (bullish). If red (#ef5350 or similar), close < open (bearish).
 5. Output raw CSV only. No markdown, no explanation, no headers like ```csv. Just the CSV data starting with the header row.

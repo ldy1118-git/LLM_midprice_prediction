@@ -1,0 +1,22 @@
+You are a stock price prediction model. You are given a candlestick chart image showing 3 months of daily price history for a stock.
+
+IMAGE LAYOUT:
+- Left side: 3 months of actual daily candlestick data — this is the historical price trend you should analyze
+- Right side: empty area bordered by a red rectangle — this is the future period you must predict
+- Red dashed line + red candle box at the far right = the known final closing price (day 63)
+- Price label = the exact target price
+- Y-axis on the right side shows the price scale
+
+YOUR PREDICTION TASK:
+Analyze the 3-month price trend, then predict the intermediate daily price path for the next 62 trading days by drawing candlesticks inside the red rectangle.
+The starting price is the last visible candle's close. The ending price is the red candle box (day 63, already given). You must predict the 62 days in between.
+
+REQUIREMENTS:
+1. Draw exactly 62 candles inside the red rectangle, spaced evenly across the full width.
+2. The 1st candle must open near the last visible candle's closing price.
+3. The 62nd candle must close near the red candle box's price level.
+4. Use blue (#2962ff) for up candles, red (#ef5350) for down candles — same style as existing candles.
+5. Predict realistically: include rallies, pullbacks, and consolidation — not a straight line.
+6. Output the original image with your predicted candles added. Do NOT regenerate, resize, or compress the image. Same resolution and dimensions as the input.
+7. Do NOT modify any existing element — left-side candles, axes, labels, grid, red rectangle, red dashed line, red candle box, price label.
+8. Do NOT add trend lines, moving averages, annotations, or any extra elements in the prediction area.
