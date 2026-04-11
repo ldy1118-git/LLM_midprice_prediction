@@ -71,7 +71,7 @@ def get_ohlcv(panel: pd.DataFrame, ticker: str, start: str, end: str) -> pd.Data
 tv_style = mpf.make_mpf_style(
     base_mpf_style="charles",
     marketcolors=mpf.make_marketcolors(
-        up="#2962ff",       # 파랑 - 상승 (미국장 컨벤션)
+        up="#26a69a",       # 초록 - 상승 (미국장 컨벤션)
         down="#ef5350",     # 빨강 - 하락
         edge="inherit",
         wick="inherit",

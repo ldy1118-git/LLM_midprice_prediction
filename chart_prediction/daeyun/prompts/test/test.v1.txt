@@ -15,7 +15,7 @@ REQUIREMENTS:
 1. Draw exactly 62 candles inside the red rectangle. The left side contains 63 candles — your prediction area must contain 62 candles at the same size, width, and spacing. Match the candle width and gap of the left side exactly.
 2. The 1st candle must open near the last visible candle's closing price.
 3. The last candle must close near the red candle box's price level.
-4. Use blue (#2962ff) for up candles, red (#ef5350) for down candles — same style as existing candles.
+4. Use green (#26a69a) for up candles, red (#ef5350) for down candles — same style as existing candles.
 5. Predict realistically: include rallies, pullbacks, and consolidation — not a straight line.
 6. Output the original image with your predicted candles added. Do NOT regenerate, resize, or compress the image. Same resolution and dimensions as the input.
 7. Do NOT modify any existing element — left-side candles, axes, labels, grid, red rectangle, red dashed line, red candle box, price label.
