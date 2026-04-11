@@ -101,26 +101,21 @@ def generate_chart(ohlcv: pd.DataFrame, ticker: str, suffix: str, title: str = "
         print(f"  [SKIP] {ticker} - no data")
         return
 
-    # 캔들/볼륨 너비 설정 (트레이딩뷰처럼 넓게)
+    # 캔들 너비 설정 (트레이딩뷰처럼 넓게)
     candle_width = 0.7
-    volume_width = 0.7
 
     kwargs = dict(
         type="candle",
         style=tv_style,
-        volume=True,
+        volume=False,
         ylabel="",
-        ylabel_lower="",
         figsize=(20, 9),
         tight_layout=True,
         returnfig=True,
-        panel_ratios=(4, 1),
         scale_padding={"left": 0.05, "top": 0.6, "right": 0.8, "bottom": 0.5},
         update_width_config=dict(
             candle_linewidth=1.0,
             candle_width=candle_width,
-            volume_linewidth=0.5,
-            volume_width=volume_width,
         ),
     )
     if ylim is not None:
@@ -165,14 +160,13 @@ def generate_chart(ohlcv: pd.DataFrame, ticker: str, suffix: str, title: str = "
                 tick_labels.append((str(d.day), False))  # False = normal
         prev_month = d.month
 
-    # x축 적용 (캔들 & 볼륨 패널 모두)
-    for a in [axes[0], axes[2]]:  # axes[0]=candle, axes[2]=volume
-        a.set_xticks(tick_positions)
-        labels_obj = a.set_xticklabels([t[0] for t in tick_labels], fontsize=10)
-        for lbl, (_, is_bold) in zip(labels_obj, tick_labels):
-            if is_bold:
-                lbl.set_fontweight("bold")
-                lbl.set_fontsize(11)
+    # x축 적용
+    ax.set_xticks(tick_positions)
+    labels_obj = ax.set_xticklabels([t[0] for t in tick_labels], fontsize=10)
+    for lbl, (_, is_bold) in zip(labels_obj, tick_labels):
+        if is_bold:
+            lbl.set_fontweight("bold")
+            lbl.set_fontsize(11)
 
     # ── Y축: 트레이딩뷰처럼 ~17틱 목표, nice number 간격 ──
     price_lo, price_hi = ax.get_ylim()
@@ -207,15 +201,8 @@ def generate_chart(ohlcv: pd.DataFrame, ticker: str, suffix: str, title: str = "
         valid_mask = ohlcv['Close'].notna()
         split_x = valid_mask.sum() - 1  # 마지막 유효 캔들 위치
 
-        # ── 1) 예측 영역 빨간 사각형 테두리 ──
+        # ── 1) 예측 영역 빨간 사각형 테두리 (마지막 캔들 바로 옆) ──
         y_lo, y_hi = ax.get_ylim()
-        rect = Rectangle(
-            (split_x + 0.5, y_lo), last_x - split_x - 0.5, y_hi - y_lo,
-            linewidth=2.5, edgecolor="#ef5350", facecolor="#ef5350",
-            alpha=0.06, linestyle="-", zorder=3,
-        )
-        ax.add_patch(rect)
-        # 테두리만 한 번 더 (배경 없이, 선명하게)
         rect_border = Rectangle(
             (split_x + 0.5, y_lo), last_x - split_x - 0.5, y_hi - y_lo,
             linewidth=2.5, edgecolor="#ef5350", facecolor="none",
@@ -249,34 +236,6 @@ def generate_chart(ohlcv: pd.DataFrame, ticker: str, suffix: str, title: str = "
             xytext=(-10, 12), textcoords="offset points",
             fontsize=10, fontweight="bold", color="#ef5350",
             ha="right",
-        )
-
-    # ── 거래량 Y축 숨기기 (마지막 바 위에 값 표시하므로 불필요) ──
-    vol_ax = axes[2]  # 볼륨 패널
-    vol_ax.yaxis.set_ticks([])
-    vol_ax.yaxis.set_ticklabels([])
-    vol_ax.set_ylabel("")  # "Volume 10^6" 라벨 제거
-    vol_series = ohlcv["Volume"].dropna()
-    if len(vol_series) > 0:
-        last_vol_idx = vol_series.index[-1]
-        last_vol = vol_series.iloc[-1]
-        last_vol_x = ohlcv.index.get_loc(last_vol_idx)
-        # 읽기 쉬운 형식으로 변환
-        if last_vol >= 1e9:
-            vol_label = f"{last_vol / 1e9:.1f}B"
-        elif last_vol >= 1e6:
-            vol_label = f"{last_vol / 1e6:.1f}M"
-        elif last_vol >= 1e3:
-            vol_label = f"{last_vol / 1e3:.0f}K"
-        else:
-            vol_label = f"{last_vol:.0f}"
-        # 마지막 바 위에 값 표시
-        vol_ax.annotate(
-            vol_label,
-            xy=(last_vol_x, last_vol),
-            xytext=(0, 8), textcoords="offset points",
-            fontsize=9, fontweight="bold", color="#555555",
-            ha="center", va="bottom",
         )
 
     fname = f"{ticker}_{suffix}.png"
