@@ -91,9 +91,10 @@ tv_style = mpf.make_mpf_style(
 
 
 def generate_chart(ohlcv: pd.DataFrame, ticker: str, suffix: str, title: str = "",
-                   ylim=None, end_close=None):
+                   ylim=None, end_close=None, end_ohlc=None):
     """캔들차트 이미지 생성 & 저장
-    end_close: 차트 마지막 날짜에 표시할 종가 (점 + 가격 라벨)
+    end_close: 차트 마지막 날짜의 종가 (빨간 점선 + 가격 라벨용)
+    end_ohlc:  (open, high, low, close) 튜플 - 마지막 칸에 실제 정답 캔들 삽입
     """
     if len(ohlcv) == 0:
         print(f"  [SKIP] {ticker} - no data")
@@ -222,11 +223,12 @@ def generate_chart(ohlcv: pd.DataFrame, ticker: str, suffix: str, title: str = "
                     solid_capstyle="butt",
                 )
 
-        # ── 1) 예측 영역 거래일 단위 세로 구분선 ──
+        # ── 1) 예측 영역: 각 거래일 위치(정수 좌표)에 세로선 ──
+        #       → 예측 캔들/정답 캔들이 이 선에 꽂히도록
         n_pred = last_x - split_x
-        for i in range(n_pred + 1):
+        for i in range(1, n_pred + 1):
             ax.axvline(
-                x=split_x + 0.5 + i,
+                x=split_x + i,
                 color="#c9c9c9", linewidth=0.6, zorder=1, alpha=0.9,
             )
 
@@ -234,20 +236,24 @@ def generate_chart(ohlcv: pd.DataFrame, ticker: str, suffix: str, title: str = "
         ax.plot([split_x, last_x], [end_close, end_close],
                 color="#ef5350", linewidth=1.2, linestyle="--", alpha=0.7, zorder=4)
 
-        # ── 3) 목표 가격 캔들 박스 (점 대신 캔들 body 형태) ──
-        candle_half_height = (y_hi - y_lo) * 0.012  # 캔들 body 높이 (차트 높이의 ~2.4%)
-        candle_box = Rectangle(
-            (last_x - candle_width / 2, end_close - candle_half_height),
-            candle_width, candle_half_height * 2,
-            linewidth=1.5, edgecolor="#ef5350", facecolor="#ef5350",
-            zorder=5,
-        )
-        ax.add_patch(candle_box)
-        # 위아래 wick (심지)
-        wick_half = candle_half_height * 2.0
-        ax.plot([last_x, last_x],
-                [end_close - candle_half_height - wick_half, end_close + candle_half_height + wick_half],
-                color="#ef5350", linewidth=1.2, zorder=4)
+        # ── 3) 마지막 칸에 실제 OHLC 정답 캔들 삽입 ──
+        if end_ohlc is not None:
+            e_open, e_high, e_low, e_close = end_ohlc
+            is_up = e_close >= e_open
+            body_color = "#26a69a" if is_up else "#ef5350"  # 초록↑/빨강↓
+            # wick (심지)
+            ax.plot([last_x, last_x], [e_low, e_high],
+                    color=body_color, linewidth=1.0, zorder=5)
+            # body (실제 OHLC 박스)
+            body_lo = min(e_open, e_close)
+            body_hi = max(e_open, e_close)
+            body_h = max(body_hi - body_lo, (y_hi - y_lo) * 0.001)  # doji 최소 두께 보정
+            ax.add_patch(Rectangle(
+                (last_x - candle_width / 2, body_lo),
+                candle_width, body_h,
+                linewidth=1.0, edgecolor=body_color, facecolor=body_color,
+                zorder=5,
+            ))
 
         # 가격 라벨
         ax.annotate(
@@ -302,12 +308,20 @@ def main():
         blank_data.loc[blank_data.index > split_dt, ["Open", "High", "Low", "Close", "Volume"]] = float("nan")
         visible_part = blank_data.loc[blank_data.index <= split_dt]
         actual_end_close = full_data["Close"].iloc[-1]
-        ylim_lo = min(visible_part["Low"].min(), actual_end_close) * 0.97
-        ylim_hi = max(visible_part["High"].max(), actual_end_close) * 1.03
+        actual_end_ohlc = (
+            float(full_data["Open"].iloc[-1]),
+            float(full_data["High"].iloc[-1]),
+            float(full_data["Low"].iloc[-1]),
+            float(full_data["Close"].iloc[-1]),
+        )
+        # ylim은 마지막 날의 High/Low도 반영
+        ylim_lo = min(visible_part["Low"].min(), actual_end_ohlc[2]) * 0.97
+        ylim_hi = max(visible_part["High"].max(), actual_end_ohlc[1]) * 1.03
         title_blank = f"{ticker} · NASDAQ · 1D"
         path_blank = generate_chart(
             blank_data, ticker, "blank_3m", title_blank,
             ylim=(ylim_lo, ylim_hi), end_close=actual_end_close,
+            end_ohlc=actual_end_ohlc,
         )
         n_visible = visible_part.dropna().shape[0]
         print(f"  입력 차트: {path_blank} ({n_visible} candles + blank)")
