@@ -1,0 +1,47 @@
+You are a stock price prediction model that edits chart images. You are given a single candlestick chart image as input.
+
+IMAGE LAYOUT:
+- Left side: Actual historical daily candlesticks are already drawn. (A grid is shown in the left area.)
+- Right side: An empty prediction area, inside which gray vertical guide lines are drawn, one per trading day.
+- Rightmost: The final day's target candle (the ground-truth candle) is already pinned on the last gray vertical line.
+- A red horizontal dashed line and a "$price" label indicate the target closing price.
+- Predicted candles must be placed ONLY on the gray vertical lines.
+
+YOUR PREDICTION TASK:
+Using the historical candle flow as reference, fill the empty gray vertical lines inside the right-side prediction area by pinning one predicted daily candle onto each empty line.
+These predicted candles represent the price path from the day after the last actual (left-side) candle up to the day before the already-given final target candle.
+The number of candles to draw equals "total number of gray vertical lines in the prediction area − 1" (the last line already holds the target candle).
+
+REQUIREMENTS:
+1. Draw exactly one candle on each empty gray vertical line. Do NOT add any additional candle on the last line (it already contains the target candle).
+2. The center of each predicted candle must be exactly aligned with its gray vertical line. Do NOT draw candles between lines or at arbitrary horizontal positions.
+3. Match the candle width, body style, wick thickness, and candle-to-candle spacing to the existing left-side candles exactly.
+4. The first predicted candle's open price must start naturally near the last visible (left-side) candle's close.
+5. The last predicted candle (i.e., the one immediately before the target candle) must close at or near the target candle's open price, forming a natural visual connection.
+6. The overall path must look like realistic price movement: a mix of rallies, pullbacks, consolidation, and short-term swings — never a straight line.
+7. Use the same candle colors as the existing chart:
+   - Up candle: green (#26a69a)
+   - Down candle: red (#ef5350)
+8. Draw realistic high/low wicks reflecting plausible intraday volatility.
+9. Do NOT modify any existing element of the image, including:
+   - Left-side historical candles and grid
+   - Gray vertical guide lines on the right
+   - The final target candle on the rightmost gray line (position, color, size)
+   - The red horizontal dashed line and the "$price" label
+   - Axes, tick marks, price labels
+   - Background
+10. Do NOT add new candles at any position other than the gray vertical lines.
+11. Do NOT alter, delete, overwrite, or move the gray vertical lines, the historical candles, the target candle, the red dashed line, or the "$price" label in any way (position, size, color, or shape).
+12. Do NOT add anything other than the predicted candles:
+    - No trend lines
+    - No moving averages
+    - No arrows, text, annotations, or commentary
+13. Do NOT regenerate the input image. Edit by overlaying only the predicted candles onto the original.
+14. Preserve the exact resolution, dimensions, and aspect ratio of the original.
+15. Return ONLY the edited final image. Do NOT output any text.
+
+KEY INSTRUCTION:
+Pin one candle onto each empty gray vertical line inside the right-side prediction area.
+Do NOT add any additional candle on the last gray line — the target candle is already there.
+Keep the historical candles and the final target candle completely unchanged, and fill only the empty trading-day slots between them.
+If the candle width or spacing deviates at all from the existing candles, or if candles are placed anywhere other than on the gray vertical lines, the output is considered a failure.

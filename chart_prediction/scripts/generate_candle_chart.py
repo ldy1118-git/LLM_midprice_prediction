@@ -225,11 +225,12 @@ def generate_chart(ohlcv: pd.DataFrame, ticker: str, suffix: str, title: str = "
 
         # ── 1) 예측 영역: 각 거래일 위치(정수 좌표)에 세로선 ──
         #       → 예측 캔들/정답 캔들이 이 선에 꽂히도록
+        #       (Gemini regeneration에서도 선이 유지되도록 진하고 굵게)
         n_pred = last_x - split_x
         for i in range(1, n_pred + 1):
             ax.axvline(
                 x=split_x + i,
-                color="#c9c9c9", linewidth=0.6, zorder=1, alpha=0.9,
+                color="#888888", linewidth=1.0, zorder=1, alpha=1.0,
             )
 
         # ── 2) 목표 가격 빨간 수평 점선 (split → 차트 끝) ──
