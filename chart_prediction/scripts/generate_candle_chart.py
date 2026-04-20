@@ -232,6 +232,14 @@ def generate_chart(ohlcv: pd.DataFrame, ticker: str, suffix: str, title: str = "
                 color="#c9c9c9", linewidth=0.6, zorder=1, alpha=0.9,
             )
 
+        # ── 1.5) LLM 예측 영역 경계: 좌/우 빨간 세로선만 (위/아래 미차단) ──
+        for x_bound in (split_x + 0.5, last_x - 0.5):
+            ax.plot(
+                [x_bound, x_bound], [y_lo, y_hi],
+                color="#ef5350", linewidth=1.5, zorder=2,
+                solid_capstyle="butt",
+            )
+
         # ── 2) 목표 가격 빨간 수평 점선 (split → 차트 끝) ──
         ax.plot([split_x, last_x], [end_close, end_close],
                 color="#ef5350", linewidth=1.2, linestyle="--", alpha=0.7, zorder=4)
