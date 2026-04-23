@@ -1,0 +1,5 @@
+# 평가 결과는 재생성 가능 — 커밋 안함 (충돌 회피)
+evaluation/results/
+
+# legacy
+_legacy/
