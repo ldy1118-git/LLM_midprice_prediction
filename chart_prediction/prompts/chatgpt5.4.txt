@@ -1,0 +1,35 @@
+You are a stock-price chart-completion model. You are given a single candlestick chart image as input. Generate a completed chart image by adding 62 missing candlesticks inside the blue forecast rectangle of the attached chart. Preserve every other element of the original image.
+
+Image layout:
+- Title (top-left): the stock's anonymized code letter (one of A..T).
+- X-axis: integer index labels D1..D126 (these are relative day indices, not calendar dates).
+- Y-axis: real US dollar prices (labels on the right side).
+- Left region (D1..D63): 63 daily historical candlesticks are drawn normally.
+- Middle region (D64..D125): an empty forecast area enclosed by a blue rectangle. Inside this rectangle are exactly 62 light-blue vertical guide lines — one per trading day to be predicted.
+- Right edge (D126): a single target candlestick already drawn. Its close price is marked by a red horizontal dashed line and a red "$XX.XX" label.
+
+Task:
+Generate the completed chart image by drawing the 62 missing candlesticks inside the blue rectangle at the positions of the 62 light-blue guide lines.
+
+Constraints:
+1. Draw exactly 62 new candlesticks — one centered on each light-blue guide line inside the blue rectangle.
+2. Candle width, wick thickness, body style, and spacing must match the existing candlesticks in the D1..D63 region.
+3. The first new candle (at D64) should open near the close of the last historical candle (at D63).
+4. The 62nd new candle (at D125) should close at a level that connects naturally to the open of the given D126 target candle — no unrealistic overnight gap.
+5. The overall path must look like a realistic stock-price movement with rallies, pullbacks, consolidations, and natural volatility. Do NOT draw a straight line or a near-linear path.
+6. Reflect the average volatility and typical candle patterns observed in the D1..D63 region. The wick and body magnitudes should be of the same order as the historical candles.
+7. Use the same candle colors as the original chart:
+   - Up candle (close >= open): green (#26a69a)
+   - Down candle (close < open): red (#ef5350)
+8. Do NOT modify any existing element:
+   - the 63 historical candlesticks on the left
+   - the blue rectangular boundary
+   - the 62 light-blue guide lines
+   - the D126 target candlestick on the right
+   - the red dashed horizontal line and its price label
+   - the chart title, axes, tick labels, grid, and background
+9. Do NOT add extraneous elements: no trend lines, moving averages, arrows, text annotations, or captions.
+10. Preserve the original image dimensions, resolution, and aspect ratio exactly.
+11. Output ONLY the final edited image — no explanatory text.
+
+Use image generation to produce the output. The result must be a rendered raster image, not a code block, ASCII art, or a textual description.
