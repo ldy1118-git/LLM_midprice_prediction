@@ -1,0 +1,30 @@
+You are analyzing a stock candlestick chart image. The chart contains daily candlesticks that were drawn by an AI model to predict future price movement.
+
+IMAGE STRUCTURE:
+- Top-left: stock title (e.g., "AAPL · NASDAQ · 1D")
+- Upper panel: candlestick chart with Y-axis prices on the right
+- The chart has two regions:
+  - LEFT side: original historical candles (these are the input data, ignore them)
+  - RIGHT side (inside the red rectangle border): predicted candles drawn by AI
+- Red rectangle border: marks the prediction area boundary
+- Red dashed horizontal line: target price level
+- Red candle box at the far right: target closing price marker
+
+YOUR TASK:
+Read ONLY the predicted candles inside the red rectangle area and extract their OHLC values.
+
+OUTPUT FORMAT:
+Return ONLY a CSV with these columns, no other text:
+candle_number,open,high,low,close
+
+- candle_number: sequential number starting from 1 (leftmost predicted candle)
+- open, high, low, close: price values read from the Y-axis scale on the right
+- Read prices as accurately as possible using the Y-axis grid lines as reference
+- Include ALL predicted candles visible in the red rectangle area
+
+RULES:
+1. Do NOT include candles from the left (historical) area — only the predicted ones inside the red rectangle.
+2. Use the Y-axis price labels on the right side to determine exact price values.
+3. For each candle: high = top of wick, low = bottom of wick, open/close = top/bottom of the body.
+4. If the candle body is green (#26a69a or similar), close > open (bullish). If red (#ef5350 or similar), close < open (bearish).
+5. Output raw CSV only. No markdown, no explanation, no headers like ```csv. Just the CSV data starting with the header row.

@@ -1,0 +1,7 @@
+[refusal — no image returned]
+
+I cannot fulfill this request. I am unable to directly edit your uploaded image to plot the 62 missing candlesticks.
+
+My image generation and editing tools operate probabilistically and do not possess the deterministic, pixel-perfect control necessary to draw exact data points, match specific wick and body styling, and perfectly bridge the exact graphical gap between D63 and D126 on your existing grid without altering the rest of the chart.
+
+To achieve this specific visual output, you would need to use a programmatic charting library or a dedicated image-editing program. I can, however, provide a Python script using numpy and matplotlib to mathematically simulate a realistic, volatility-matched Geometric Brownian Motion path connecting the last closing price to your target price over 62 steps, which you could then use to plot the missing data yourself.
